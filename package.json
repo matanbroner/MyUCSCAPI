@@ -1,0 +1,19 @@
+{
+  "name": "myucsc-api",
+  "version": "1.0.0",
+  "description": "An API designed to interact with the MyUCSC class registration system",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matanbroner/MyUCSCAPI.git"
+  },
+  "author": "Matan Broner",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/matanbroner/MyUCSCAPI/issues"
+  },
+  "homepage": "https://github.com/matanbroner/MyUCSCAPI#readme"
+}
