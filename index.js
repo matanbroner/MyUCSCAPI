@@ -1,20 +1,17 @@
-const Api = require('./api');
-
-const config = {
-    username: 'mbroner',
-    password: 'ma97ro99ra14',
-    browser: 'chrome',
-    tfaMethod: 'push', // push, passcode, or phone
-    urls: {
-        login: 'https://my.ucsc.edu/'
-    }
-}
+const Api = require("./assets/ucsc/api");
+const courses = require("./courses.json");
 
 const api = new Api(config);
 
-try {
-     api.activate()
-        .then(() => api.redirectToClassSearch())
-} catch (e) {
+const main = async () => {
+  try {
+    await api.activate();
+    await api.redirectToEnrollment();
+    await api.redirectToClassSearch();
+    setInterval(() => api.checkCoursesStatuses(courses), 15000);
+  } catch (e) {
     console.log(e);
-}
+  }
+};
+
+main();

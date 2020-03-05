@@ -1,0 +1,19 @@
+[
+  {
+    "name": "Embedded Systems and C Programming",
+    "id": "63589",
+    "section": null,
+    "config": {
+      "notifyOpenSpots": true,
+      "repeatNotifications": false
+    }
+  },
+  {
+    "name": "Computational Models",
+    "id": "62340",
+    "section": null,
+    "config": {
+      "notifyOpenSpots": true
+    }
+  }
+]
