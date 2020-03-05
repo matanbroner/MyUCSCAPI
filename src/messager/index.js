@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-const providers = require("./providers.json");
+const providers = require("../assets/providers.json");
 
 class TextMessager {
   constructor(config) {

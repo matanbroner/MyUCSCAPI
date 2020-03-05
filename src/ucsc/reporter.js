@@ -1,19 +1,21 @@
 const TextMessager = require("../messager");
 
 class CourseReporter {
-  constructor(config) {
+  constructor(username, password, config) {
     this.config = config;
-    this._generateMessager();
+    this._generateMessager(username, password);
 
     this.courses = {};
   }
 
   updateCourseStatus(course) {
     let notify = true;
-    if (Object.keys(this.courses).length !== 0) {
+    if (!(course.id in this.courses) || this.courses === {}) {
+      notify = course.spots > 0;
+    } else {
       notify =
-        (course.spots > 0 && this.courses[course.id].spots == 0) ||
-        (course.spots == 0 && this.courses[course.id].spots > 0);
+        (course.spots > 0 && this.courses[course.id].spots === 0) ||
+        (course.spots === 0 && this.courses[course.id].spots > 0);
     }
     this.courses[course.id] = {
       ...course,
@@ -21,10 +23,10 @@ class CourseReporter {
     };
   }
 
-  _generateMessager() {
+  _generateMessager(username, password) {
     this.messager = new TextMessager({
-      username: this.config.username,
-      password: this.config.password,
+      username,
+      password,
       provider: this.config.provider
     });
   }

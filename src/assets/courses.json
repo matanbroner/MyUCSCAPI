@@ -1,0 +1,20 @@
+[{
+  "name": "Embedded Systems and C Programming",
+  "id": "63589",
+  "config": {
+    "notifyOpenSpots": true,
+    "repeatNotifications": false
+  }
+}, {
+  "name": "Computational Models",
+  "id": "62340",
+  "config": {
+    "notifyOpenSpots": true
+  }
+}, {
+  "name": "Mathematical Methods for Engineers I",
+  "id": "62602",
+  "config": {
+    "notifyOpenSpots": true
+  }
+}]

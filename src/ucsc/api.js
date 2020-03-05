@@ -10,8 +10,8 @@ class Api {
   async activate() {
     try {
       await this._generateDriver();
-      this.reporter = new CourseReporter(this.config.reports);
-      await this.login(this.config.username, this.config.password);
+      this.reporter = new CourseReporter(this.config.username, this.config.passwords.blue, this.config.reports);
+      await this.login(this.config.username, this.config.passwords.gold);
       return Promise.resolve();
     } catch (e) {
       console.log(e);
@@ -131,7 +131,13 @@ class Api {
             [statusKey]: true,
             spots: enrollmentNumbers[1] - enrollmentNumbers[0]
           });
-        } catch (e) {} // Class Not Found
+        } catch (e) {
+          validatedCourses.push({
+            ...courses[i],
+            [statusKey]: false,
+            spots: 0
+          });
+        } // Class Not Found
 
         await this._shiftToMainFrame();
         await this.redirectToClassSearch();

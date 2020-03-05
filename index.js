@@ -1,5 +1,13 @@
-const Api = require("./assets/ucsc/api");
-const courses = require("./courses.json");
+const Api = require("./src/ucsc/api");
+const courses = require("./src/assets/courses.json");
+
+const systemConfigs = require('./src/config/system.json');
+const userConfigs = require('./src/config/config.json');
+
+const config = {
+  ...systemConfigs,
+  ...userConfigs
+}
 
 const api = new Api(config);
 
