@@ -1,5 +1,9 @@
 {
     "urls": {
         "login": "https://my.ucsc.edu/"
-    }
+    },
+    "webdriver": {
+        "wait": 30000
+    },
+    "timer": 1
 }

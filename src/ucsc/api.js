@@ -1,22 +1,26 @@
 const { Builder, By, Key, until } = require("selenium-webdriver");
 
-const CourseReporter = require("./reporter");
+const utils = require("../assets/utils");
+const apiAssets = require("../assets/api");
 
 class Api {
-  constructor(config) {
+  constructor(config, reporter) {
     this.config = config;
+    this.reporter = reporter;
   }
 
   async activate() {
     try {
       await this._generateDriver();
-      this.reporter = new CourseReporter(this.config.username, this.config.passwords.blue, this.config.reports);
       await this.login(this.config.username, this.config.passwords.gold);
       return Promise.resolve();
     } catch (e) {
-      console.log(e);
       return Promise.reject();
     }
+  }
+
+  waitTime() {
+    return this.config.webdriver.wait;
   }
 
   async login(username, password) {
@@ -33,12 +37,11 @@ class Api {
       }
       let continueButton = await this.driver.wait(
         until.elementLocated(By.xpath('//*[@id="shibSubmit"]')),
-        30000
-      ); // waits 30 seconds for duo approval
+        this.waitTime()
+      );
       await continueButton.click();
       return Promise.resolve();
     } catch (e) {
-      console.log(e);
       return Promise.reject();
     }
   }
@@ -51,7 +54,7 @@ class Api {
         .frame(this.driver.findElement(By.id("duo_iframe")));
       let authMethods = await this.driver.wait(
         until.elementLocated(By.xpath('//*[@id="auth_methods"]')),
-        1000
+        this.waitTime()
       );
       let method = await authMethods.findElement(
         By.className(`row-label ${tfaMethod}-label`)
@@ -63,7 +66,6 @@ class Api {
       await this._shiftToMainFrame();
       return Promise.resolve();
     } catch (e) {
-      console.log(e);
       return Promise.reject();
     }
   }
@@ -72,81 +74,328 @@ class Api {
     try {
       let enrollmentButton = await this.driver.wait(
         until.elementLocated(By.xpath("//*[contains(text(), 'Enrollment')]")),
-        10000
+        this.waitTime()
       );
       await enrollmentButton.click();
-    } catch (e) {
-      console.log(e);
-    }
+    } catch (e) {}
   }
 
-  async redirectToClassSearch() {
+  async redirectTab(tab) {
     try {
-      let classSearchButton = await this.driver.wait(
-        until.elementLocated(By.xpath("//*[contains(text(), 'Class Search')]")),
-        10000
-      );
-      await classSearchButton.click();
-    } catch (e) {
-      console.log(e);
-    }
-  }
-
-  async checkCoursesStatuses(courses = []) {
-    const openCourses = await this._checkStatusUtil(courses, "Open", "open");
-    openCourses.forEach(course => {
-      this.reporter.updateCourseStatus(course);
-      this.reporter.notifyCourseStatus(course, course.spots, "open");
-    });
-  }
-
-  async _checkStatusUtil(courses, selectTitle, statusKey) {
-    try {
-      let validatedCourses = [];
-      // use for loop due to async await not working well with forEach and map
-      for (let i = 0; i < courses.length; i++) {
-        await this._shiftToIFrame("ps_target-iframe");
-
-        let regStatusSelect = await this.driver.wait(
-          until.elementLocated(By.id("reg_status")),
-          10000
-        );
-        let selection = await regStatusSelect.findElement(
-          By.xpath(`//*[contains(text(), '${selectTitle} Classes')]`)
-        );
-        await selection.click();
-        await this.driver
-          .findElement(By.id("title"))
-          .sendKeys(courses[i].name, Key.ENTER);
-        try {
-          const courseId = `class_id_${courses[i].id}`;
-          await this.driver.findElement(By.id(courseId));
-          const enrollmentText = await this.driver.findElement(
-            By.xpath("//*[contains(text(), 'Enrolled')]")
+      await utils.retry(
+        async function() {
+          this._shiftToMainFrame();
+          let classSearchButton = await this.driver.wait(
+            until.elementLocated(By.xpath(`//*[contains(text(), '${tab}')]`)),
+            this.waitTime()
           );
-          let enrollmentNumbers = await enrollmentText.getText();
-          enrollmentNumbers = enrollmentNumbers.match(/\d+/g).map(Number);
-          validatedCourses.push({
-            ...courses[i],
-            [statusKey]: true,
-            spots: enrollmentNumbers[1] - enrollmentNumbers[0]
-          });
-        } catch (e) {
-          validatedCourses.push({
-            ...courses[i],
-            [statusKey]: false,
-            spots: 0
-          });
-        } // Class Not Found
-
-        await this._shiftToMainFrame();
-        await this.redirectToClassSearch();
-      }
-      return Promise.resolve(validatedCourses);
+          await classSearchButton.click();
+        }.bind(this)
+      );
+      return Promise.resolve();
     } catch (e) {
-      console.log(e);
       return Promise.reject();
     }
+  }
+
+  async addToCart(course) {
+    try {
+      await utils.retry(
+        async function() {
+          let shoppingCartWrapper = await this.driver.findElement(
+            By.id(`cartForm${course.id}`)
+          );
+          let addToCart = await shoppingCartWrapper.findElement(By.css("a"));
+          await addToCart.click();
+        }.bind(this)
+      );
+      if (await this._isAlreadyInShoppingCart()) {
+        return;
+      }
+      if (course.labSectionId) {
+        let labSectionTable = await this.driver.wait(
+          until.elementLocated(By.xpath(apiAssets.xpaths.labSectionTable)),
+          this.waitTime()
+        );
+        let labSectionInput = await this._findSectionRow(
+          labSectionTable,
+          course.labSectionId
+        );
+        await labSectionInput.click();
+      }
+      if (course.discussionSectionId) {
+        let discussionSectionTable = await this.driver.wait(
+          until.elementLocated(
+            By.xpath(apiAssets.xpaths.discussionSectionTable)
+          ),
+          this.waitTime()
+        );
+        let discussionSectionInput = await this._findSectionRow(
+          discussionSectionTable,
+          course.discussionSectionId
+        );
+        await discussionSectionInput.click();
+      }
+      let submitSectionsButton = await this.driver.findElement(
+        By.name("DERIVED_CLS_DTL_NEXT_PB")
+      );
+      await submitSectionsButton.click();
+
+      if (course.config.autoWaitlist) {
+        let wailistCheckbox = await this.driver.wait(
+          until.elementLocated(By.name("DERIVED_CLS_DTL_WAIT_LIST_OKAY$125$")),
+          this.waitTime()
+        );
+        await wailistCheckbox.click();
+      }
+
+      let submitSettingsButton = await this.driver.wait(
+        until.elementLocated(By.name("DERIVED_CLS_DTL_NEXT_PB$280$")),
+        this.waitTime()
+      );
+      await submitSettingsButton.click();
+    } catch (e) {}
+    return Promise.resolve();
+  }
+
+  async enroll(course) {
+    try {
+      await this.redirectTab(apiAssets.tabs.shoppingCart);
+      await this._shiftToIFrame("ps_target-iframe");
+      let shoppingCartTable = await this.driver.wait(
+        until.elementLocated(By.xpath(apiAssets.xpaths.shoppingCartTable)),
+        this.waitTime()
+      );
+      let courseCheckbox = await this._findEnrollmentCartRow(
+        shoppingCartTable,
+        course.id
+      );
+      await courseCheckbox.click();
+      let enrollButton = await this.driver.findElement(
+        By.name("DERIVED_REGFRM1_LINK_ADD_ENRL$291$")
+      );
+      await enrollButton.click();
+      let finishEnrollingButton = await this.driver.wait(
+        until.elementLocated(By.name("DERIVED_REGFRM1_SSR_PB_SUBMIT")),
+        this.waitTime()
+      );
+      await finishEnrollingButton.click();
+      let enrollmentStatusTable = await this.driver.wait(
+        until.elementLocated(By.xpath(apiAssets.xpaths.enrollmentStatusTable)),
+        this.waitTime()
+      );
+      return this._verifyEnrollmentStatus(enrollmentStatusTable);
+    } catch (e) {}
+  }
+
+  async getOpenSpots() {
+    try {
+      const enrollmentText = await this.driver.findElement(
+        By.xpath("//*[contains(text(), 'Enrolled')]")
+      );
+      let enrollmentNumbers = await enrollmentText.getText();
+      enrollmentNumbers = enrollmentNumbers.match(/\d+/g).map(Number);
+      const spots = enrollmentNumbers[1] - enrollmentNumbers[0];
+      return Promise.resolve(spots);
+    } catch (e) {
+      return Promise.reject();
+    }
+  }
+
+  async checkCoursesStatuses(courses) {
+    // use for loop due to async await not working well with forEach and map
+    for (let i = 0; i < courses.length; i++) {
+      await this._shiftToMainFrame();
+      await this.redirectTab(apiAssets.tabs.classSearch);
+      if (courses[i].active) {
+        let courseStatus = await this._checkOpenStatusUtil(
+          courses[i],
+          "Open",
+          "open"
+        );
+        let updatedCourse = courseStatus[0];
+        let enrolled = courseStatus[1];
+        this.reporter.updateCourseStatus(updatedCourse);
+        this.reporter.notifyCourseStatus(
+          updatedCourse,
+          updatedCourse.spots,
+          "open"
+        );
+        if (!updatedCourse.active|| enrolled[1]) {
+          this.reporter.notifyEnrollment(courses[i], enrolled[0], enrolled[1]);
+        }
+      }
+    }
+  }
+
+  async _checkOpenStatusUtil(course, selectTitle, statusKey) {
+    let enrolled = [];
+    let validatedCourse = {};
+    try {
+      await utils.retry(
+        async function() {
+          await this._shiftToIFrame("ps_target-iframe");
+          let regStatusSelect = await this.driver.wait(
+            until.elementLocated(By.id("reg_status")),
+            this.waitTime()
+          );
+          let selection = await regStatusSelect.findElement(
+            By.xpath(`//*[contains(text(), '${selectTitle} Classes')]`)
+          );
+          await selection.click();
+        }.bind(this)
+      );
+      await this.driver
+        .findElement(By.id("title"))
+        .sendKeys(course.name, Key.ENTER);
+      try {
+        const courseIdTag = `class_id_${course.id}`;
+        await this.driver.findElement(By.id(courseIdTag));
+        const spots = await this.getOpenSpots();
+        if (spots > 0 && course.config.autoEnroll) {
+          await this.addToCart(course);
+          enrolled = await this.enroll(course);
+          if (enrolled[0]) {
+            course.active = false;
+          }
+        }
+        validatedCourse = {
+          ...course,
+          [statusKey]: true,
+          spots
+        };
+      } catch (e) {
+        // Class Not Found
+        validatedCourse = {
+          ...course,
+          [statusKey]: false,
+          spots: 0
+        };
+      }
+      return Promise.resolve([validatedCourse, enrolled]);
+    } catch (e) {
+      return Promise.reject();
+    }
+  }
+
+  async _findSectionRow(table, sectionId) {
+    let statuses = {};
+    let tableRows = await this._fetchTableRows(table);
+    for (let i = 0; i < tableRows.length; i++) {
+      try {
+        let row = tableRows[i];
+        let cells = await row.findElements(
+          By.className(
+            i % 2 == 0 ? "PSLEVEL1GRIDEVENROW" : "PSLEVEL1GRIDODDROW"
+          )
+        );
+        let id = await cells[1].findElement(By.className("PSEDITBOX_DISPONLY"));
+        id = await id.getText();
+        let imageStatus = await cells[6].findElement(By.css("img"));
+        imageStatus = await imageStatus.getAttribute("src");
+        statuses[id] = {
+          selectInput: cells[0],
+          open: imageStatus.includes("STATUS_OPEN")
+        };
+      } catch (e) {
+        continue;
+      }
+    }
+    if (sectionId in statuses && statuses[sectionId].open) {
+      return Promise.resolve(statuses[sectionId].selectInput);
+    } else {
+      return Promise.reject(null);
+    }
+  }
+
+  async _findEnrollmentCartRow(table, courseId) {
+    let tableRows = await this._fetchTableRows(table);
+    let courseCheckbox = null;
+    while (!courseCheckbox) {
+      for (let i = 0; i < tableRows.length; i++) {
+        try {
+          let row = tableRows[i];
+          let cells = await row.findElements(
+            By.className(
+              i % 2 == 0 ? "PSLEVEL1GRIDEVENROW" : "PSLEVEL1GRIDODDROW"
+            )
+          );
+          let courseName = await cells[1].findElement(By.css("a"));
+          courseName = await courseName.getText();
+          if (courseName.includes(courseId)) {
+            return cells[0].findElement(By.className("PSCHECKBOX"));
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+    }
+  }
+
+  async _parseTableFunction(table, func) {
+    let tableRows = await this._fetchTableRows(table);
+    for (let i = 0; i < tableRows.length; i++) {
+      try {
+        let row = tableRows[i];
+        let cells = await row.findElements(
+          By.className(
+            i % 2 == 0 ? "PSLEVEL1GRIDEVENROW" : "PSLEVEL1GRIDODDROW"
+          )
+        );
+        return func(cells);
+      } catch (e) {
+        continue;
+      }
+    }
+  }
+
+  async _verifyEnrollmentStatus(table) {
+    let tableRows = await this._fetchTableRows(table);
+    for (let i = 0; i < tableRows.length; i++) {
+      try {
+        let row = tableRows[i];
+        let cells = await row.findElements(
+          By.className(
+            i % 2 == 0 ? "PSLEVEL1GRIDEVENROW" : "PSLEVEL1GRIDODDROW"
+          )
+        );
+        let statusImage = await cells[2].findElement(By.css("img"));
+        let statusImageSrc = await statusImage.getAttribute("src");
+        if (!statusImageSrc.includes("STATUS_ERROR")) {
+          return [true, null];
+        } else {
+          let errorMessage = await (
+            await cells[1].findElement(By.css("div"))
+          ).findElement(By.css("div"));
+          return [false, await errorMessage.getText()];
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+  }
+
+  async _isAlreadyInShoppingCart() {
+    try {
+      await this.driver.findElement(
+        By.xpath(
+          `//*[contains(text(), 'This class is already in your Shopping Cart')]`
+        )
+      );
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async _fetchTableRows(table) {
+    let tableRows = [];
+    await utils.retry(
+      async function() {
+        tableRows = await table.findElements(By.css("tr"));
+      }.bind(this)
+    );
+    return Promise.resolve(tableRows);
   }
 
   async _generateDriver() {
@@ -154,7 +403,6 @@ class Api {
       this.driver = await new Builder().forBrowser(this.config.browser).build();
       return Promise.resolve();
     } catch (e) {
-      console.log(e);
       return Promise.reject();
     }
   }
@@ -165,13 +413,15 @@ class Api {
       await this.driver.switchTo().parentFrame(parentWindow);
       return Promise.resolve();
     } catch (e) {
-      console.log(e);
       return Promise.reject();
     }
   }
 
   async _shiftToIFrame(frame) {
-    await this.driver.wait(until.elementLocated(By.className(frame)), 10000);
+    await this.driver.wait(
+      until.elementLocated(By.className(frame)),
+      this.waitTime()
+    );
     return this.driver
       .switchTo()
       .frame(this.driver.findElement(By.className(frame)));

@@ -1,1 +1,13 @@
-{"username":"mbroner","passwords":{"gold":"ma97ro99ra14","blue":"ra14ro99ma97"},"browser":"chrome","tfaMethod":"push","reports":{"provider":"tmobile","phone":"4084100240"}}
+{
+    "username": "[ENTER CRUZID]",
+    "passwords": {
+        "gold": "[ENTER GOLD PASSWORD]",
+        "blue": "[ENTER BLUE PASSWORD]"
+    },
+    "browser": "[ENTER BROWSER KEY]",
+    "tfaMethod": "[ENTER TFA METHOD KEY]",
+    "reports": {
+        "provider": "[ENTER PROVIDER KEY]",
+        "phone": "[ENTER PHONE]"
+    }
+}

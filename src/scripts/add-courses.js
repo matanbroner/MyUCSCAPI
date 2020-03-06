@@ -19,6 +19,16 @@ const addCourses = async () => {
               message: "Course ID:"
             },
             {
+              type: "input",
+              name: "discussionSectionId",
+              message: "Discussion Section ID (ENTER for none):"
+            },
+            {
+              type: "input",
+              name: "labSectionId",
+              message: "Lab Section ID (ENTER for none):"
+            },
+            {
               type: "list",
               message: "Notify on Open Spots?",
               name: "config.notifyOpenSpots",
@@ -32,9 +42,42 @@ const addCourses = async () => {
                   value: false
                 }
               ]
+            },
+            {
+              type: "list",
+              message: "Auto enroll when open spots found?",
+              name: "config.autoEnroll",
+              choices: [
+                {
+                  name: "Yes",
+                  value: true
+                },
+                {
+                  name: "No",
+                  value: false
+                }
+              ]
+            },
+            {
+              type: "list",
+              message: "Auto waitlist when enrolling?",
+              name: "config.autoWaitlist",
+              choices: [
+                {
+                  name: "Yes",
+                  value: true
+                },
+                {
+                  name: "No",
+                  value: false
+                }
+              ]
             }
           ]);
-          currentCourses.push(newCourse);
+          currentCourses.push({
+            ...newCourse,
+            active: true
+          });
           continueAnswers = await inquirer.prompt([
             {
                 type: "list",

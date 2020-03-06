@@ -1,20 +1,22 @@
 [{
-  "name": "Embedded Systems and C Programming",
-  "id": "63589",
-  "config": {
-    "notifyOpenSpots": true,
-    "repeatNotifications": false
-  }
-}, {
+  "active": true,
   "name": "Computational Models",
   "id": "62340",
+  "section": null,
   "config": {
-    "notifyOpenSpots": true
+    "notifyOpenSpots": true,
+    "autoEnroll": true,
+    "autoWaitlist": true
   }
 }, {
+  "active": true,
   "name": "Mathematical Methods for Engineers I",
   "id": "62602",
+  "labSectionId": "62603",
+  "discussionSectionId": null,
   "config": {
-    "notifyOpenSpots": true
+    "notifyOpenSpots": true,
+    "autoEnroll": true,
+    "autoWaitlist": true
   }
 }]
