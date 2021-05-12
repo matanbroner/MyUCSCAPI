@@ -20,7 +20,7 @@
     "chromedriver": "^80.0.1",
     "inquirer": "^7.0.6",
     "install": "^0.13.0",
-    "nodemailer": "^6.4.4",
+    "nodemailer": "^6.4.16",
     "npm": "^6.14.2",
     "selenium-webdriver": "^4.0.0-alpha.5"
   }
